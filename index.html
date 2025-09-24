@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ventilador 127 V — Simulação 0–220 V (HTML)</title>
+  <title>Ventilador 127 V — Simulação 0–220 V (HTML — mobile fix)</title>
   <style>
-    :root{ --bg:#f5f7fb; --ink:#0f172a; --muted:#475569; --card:#ffffff; --line:#cbd5e1; --ok:#16a34a; --warn:#f59e0b; --bad:#ef4444; }
+    :root{ --bg:#f5f7fb; --ink:#0f172a; --muted:#475569; --card:#ffffff; --line:#cbd5e1; }
     *{box-sizing:border-box}
     html,body{height:100%; margin:0}
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",sans-serif;background:var(--bg);color:var(--ink)}
@@ -39,6 +39,7 @@
     #tests{font-size:12px}
     #tests .ok{color:#065f46}
     #tests .fail{color:#991b1b}
+    input[type="range"]{touch-action:none}
   </style>
 </head>
 <body>
@@ -58,11 +59,11 @@
     <main>
       <div class="fan-area" id="shakeHost">
         <div class="fan-box">
-          <!-- SVG FAN -->
+          <!-- SVG -->
           <svg id="fan" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%">
             <defs>
               <filter id="motionBlur" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur id="blurNode" stdDeviation="0" edgeMode="duplicate"/>
+                <feGaussianBlur id="blurNode" stdDeviation="0"/>
               </filter>
               <radialGradient id="hub" cx="50%" cy="50%" r="50%">
                 <stop offset="0%" stop-color="#cbd5e1"/>
@@ -81,10 +82,9 @@
 
             <circle cx="300" cy="300" r="230" fill="#f8fafc" stroke="#cbd5e1" stroke-width="6"/>
 
-            <!-- guarda -->
             <g id="guard"></g>
 
-            <!-- Grupo que gira: translate primeiro, rotate depois -->
+            <!-- Gira ao redor do centro -->
             <g id="blades" filter="url(#motionBlur)" transform="translate(300,300) rotate(0)">
               <g transform="rotate(0)" id="b0" opacity="0.6">
                 <path d="M0,0 C 12,-18 70,-28 180,-10 C 196,-8 202,10 190,18 C 150,46 84,72 8,52 Z" fill="url(#blade)" stroke="#64748b" stroke-width="0.5"/>
@@ -101,11 +101,9 @@
             <g id="shards"></g>
 
             <text x="300" y="560" text-anchor="middle" font-size="16" fill="#334155" id="hud">— rpm • — °C</text>
-
-            <!-- overlay de aviso usa fill-opacity para compatibilidade total em SVG -->
             <circle cx="300" cy="300" r="230" id="warnOverlay" fill="#facc15" fill-opacity="0"/>
           </svg>
-          <canvas id="smoke" class="smoke" style="position:absolute;inset:0;pointer-events:none"></canvas>
+          <canvas id="smoke" style="position:absolute;inset:0;pointer-events:none"></canvas>
         </div>
       </div>
 
@@ -139,11 +137,11 @@
           <ul class="tiny">
             <li><b>Subtensão</b>: risco de não partir e aquecimento por slip elevado (I↑, perdas↑).</li>
             <li><b>Sobretensão</b>: perdas↑, ruído↑, estresse dielétrico↑ — acima de ~195 V (em motor 127 V) pode haver falha severa.</li>
-            <li>Fumaça/estouro são <b>efeitos visuais didáticos</b> para frisar limites perigosos.</li>
+            <li>Fumaça/estouro são <b>efeitos visuais didáticos</b>.</li>
           </ul>
 
           <details style="margin-top:8px">
-            <summary style="font-size:12px;cursor:pointer">Testes internos (ver no console também)</summary>
+            <summary style="font-size:12px;cursor:pointer">Testes internos (console)</summary>
             <div id="tests" style="margin-top:8px"></div>
           </details>
         </div>
@@ -155,6 +153,7 @@
 // ===== Utilidades =====
 const rpmToRad = (rpm) => (rpm * 2 * Math.PI) / 60;
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const clearNode = (n)=>{ while(n.firstChild) n.removeChild(n.firstChild); };
 
 // ===== Parâmetros =====
 const PRESET = {
@@ -167,6 +166,7 @@ let V = 127;
 let hardStop = false, smokeOn=false, boomOn=false, paused=false;
 let temp = PRESET.Tamb, overISeconds=0, stalledSeconds=0;
 let angle = 0, lastT=0, shock=0;
+let lowPerf = false, fpsAvg = 60;
 
 // ===== DOM =====
 const voltage = document.getElementById('voltage');
@@ -228,21 +228,16 @@ function computeOperatingPoint(Vv,M){
   const rpmSync = (120*f)/poles; const wSync = rpmToRad(rpmSync); const wNom = rpmToRad(rpm_nom);
   const Veff = clamp(Vv,0,240); const puV = Veff/Vn;
 
-  // ganho de torque ~ V^2 até ~1.6 pu; depois deforma
   const Kt_eff = Kt * (puV<=1.6 ? puV**2 : (1.6**2)*(1+0.35*(puV-1.6)));
   const Pcore_eff = Pcore * (0.5 + 0.5*puV**2);
 
-  // curva mecânica simples
   const Tm = (w)=> Kt_eff * Math.max(0, 1 - w/(wSync*(0.995 - 0.02*Math.max(puV-1,0))));
   const Tl = (w)=> Kf * (w/wNom)**2 + 0.01;
 
-  // equilíbrio Tm=Tl (bisseção)
+  // bisseção robusta (se não houver interseção, ficamos em wEq=0)
   let lo=1e-3, hi=wSync*0.999, wEq=0;
   let flo = Tm(lo)-Tl(lo), fhi = Tm(hi)-Tl(hi);
-  if (flo*fhi>0){
-    // Sem interseção (torque insuficiente): motor não sustenta rotação
-    wEq = 0;
-  } else {
+  if (flo*fhi<=0){
     for(let i=0;i<80;i++){
       const mid=0.5*(lo+hi);
       const fmid=Tm(mid)-Tl(mid);
@@ -251,7 +246,6 @@ function computeOperatingPoint(Vv,M){
     }
   }
 
-  // proteção em baixa tensão: reduz ainda mais a rotação
   if(Veff<70) wEq *= (Veff/70);
 
   const rpm = (wEq*60)/(2*Math.PI);
@@ -260,22 +254,17 @@ function computeOperatingPoint(Vv,M){
   const torque = Math.max(0,Tm(wEq));
   const Pout = torque*wEq;
 
-  // Perdas/Entrada com correções em sobretensão
   const eta_eff = Math.max(eta - 0.06*Math.max(puV-1,0), 0.05);
   const PinNoCore = Pout / (eta_eff||0.05);
   const extraCopper = (puV>1 ? (puV-1)*60 : 0);
   const Pin = PinNoCore + Pcore_eff + extraCopper;
   const losses = Math.max(Pin - Pout, 0);
 
-  // Corrente: evite explosão em V≈0 (I→0 quando V→0)
   let I;
-  if (Veff < 1) {
-    I = 0; // sem tensão, sem corrente
-  } else {
-    const pf_eff = Math.max(0.4, pf - 0.08*Math.max(puV-1,0)); // pf cai um pouco com sobrex
-    // Atenua em baixa tensão: fator (0.3 + 0.7*puV) evita I ir ao infinito
+  if (Veff < 1) I = 0;
+  else {
+    const pf_eff = Math.max(0.4, pf - 0.08*Math.max(puV-1,0));
     I = (Pin / Math.max(Veff * pf_eff, 1)) * Math.max(0.3, Math.min(1, (0.3 + 0.7*puV)));
-    // Em travamento, limita a 3.5x In para estabilidade visual
     if (rpm < 80 && puV>0.4) I = Math.min(I, 3.5*In_rated);
   }
 
@@ -288,7 +277,6 @@ function classifyRisk(c,M){
   const overV = c.Veff>127;
   const stalled = c.rpm<280 && c.I>1.2*In;
 
-  // Índice de severidade
   let S = 0;
   S += clamp((c.I/In - 1)*42,0,42);
   S += clamp((c.losses/120 -1)*30,0,30);
@@ -313,7 +301,7 @@ voltage.addEventListener('input', e=>{ V = Number(e.target.value); vLbl.textCont
 resetBtn.addEventListener('click', ()=>{
   hardStop=false; smokeOn=false; boomOn=false; temp=PRESET.Tamb;
   overISeconds=0; stalledSeconds=0; angle=0; lastT=0; shock=0;
-  shardsGroup.innerHTML='';
+  clearNode(shardsGroup);
   blades.setAttribute('transform','translate(300,300) rotate(0)');
   hardStopLbl.style.display='none';
 });
@@ -322,22 +310,22 @@ pauseBtn.addEventListener('click', ()=>{ paused=!paused; pauseBtn.textContent = 
 // ===== Fumaça (canvas) =====
 const smokeCanvas = document.getElementById('smoke');
 const sctx = smokeCanvas.getContext('2d');
-let DPR = window.devicePixelRatio||1; let parts=[]; let seed=0; let ro=null; let size={w:0,h:0};
-function applyResize(w,h){ w=Math.max(1,Math.floor(w)); h=Math.max(1,Math.floor(h)); if(w===size.w && h===size.h) return; size.w=w; size.h=h;
-  requestAnimationFrame(()=>{ smokeCanvas.width=w*DPR; smokeCanvas.height=h*DPR; sctx.setTransform(DPR,0,0,DPR,0,0); });
-}
-(function(){
-  const rect=smokeCanvas.getBoundingClientRect(); applyResize(rect.width,rect.height);
-  if('ResizeObserver' in window){
-    ro=new ResizeObserver((entries)=>{ const {width,height}=entries[0].contentRect; requestAnimationFrame(()=>applyResize(width,height)); });
-    ro.observe(smokeCanvas);
-  } else {
-    window.addEventListener('resize', ()=>{ const r=smokeCanvas.getBoundingClientRect(); applyResize(r.width,r.height); });
+let DPR = Math.min(window.devicePixelRatio||1, 1.75);
+let parts=[]; let seed=0; let sizeW=0,sizeH=0;
+function syncCanvasSize(){
+  const r = smokeCanvas.getBoundingClientRect();
+  const w = Math.max(1, Math.floor(r.width));
+  const h = Math.max(1, Math.floor(r.height));
+  if (w!==sizeW || h!==sizeH){
+    sizeW=w; sizeH=h;
+    smokeCanvas.width = Math.max(1, Math.floor(w*DPR));
+    smokeCanvas.height= Math.max(1, Math.floor(h*DPR));
+    sctx.setTransform(DPR,0,0,DPR,0,0);
   }
-})();
+}
 function spawn(){
-  const w=size.w,h=size.h;
-  for(let i=0;i<(smokeOn?6:1);i++){
+  const w=sizeW,h=sizeH, mult = lowPerf?0.6:1;
+  for(let i=0;i<(smokeOn?Math.round(6*mult):1);i++){
     const x=w*0.5 + (Math.random()*80-40);
     const y=h*0.58 + 30 + (Math.random()*20-10);
     parts.push({x,y,r:8+Math.random()*18,vy:-20 - Math.random()*30,vx:(Math.random()*16-8),a:0.35,life:1.2+Math.random()*1.4,t:0});
@@ -347,16 +335,16 @@ function spawn(){
 // ===== Estilhaços =====
 let shardObjs=[];
 function makeShards(){
-  const N=9; const out=[];
+  const N=lowPerf?6:9; const out=[];
   for(let i=0;i<N;i++){
     const ang=(i/N)*Math.PI*2 + (Math.random()*0.6-0.3);
     const speed=220+Math.random()*220;
-    out.push({x:300,y:300,vx:Math.cos(ang)*speed,vy:Math.sin(ang)*speed-60,rot:Math.random()*360,vr:(Math.random()*360-180),life:2.8+Math.random()*1.5,t:0,dead:false,el:null});
+    out.push({x:300,y:300,vx:Math.cos(ang)*speed,vy:Math.sin(ang)*speed-60,rot:Math.random()*360,vr:(Math.random()*360-180),life:2.0+Math.random()*1.2,t:0,dead:false,el:null});
   }
   return out;
 }
 function mountShards(){
-  shardsGroup.innerHTML='';
+  clearNode(shardsGroup);
   shardObjs.forEach(s=>{
     const g=document.createElementNS('http://www.w3.org/2000/svg','g');
     const p=document.createElementNS('http://www.w3.org/2000/svg','path');
@@ -370,7 +358,14 @@ function mountShards(){
 function step(ts){
   if(paused){ lastT=ts; return requestAnimationFrame(step); }
   if(!lastT) lastT=ts;
-  const dt=(ts-lastT)/1000; lastT=ts;
+  const dt=Math.max(0.001,(ts-lastT)/1000); lastT=ts;
+
+  // FPS médio para decidir efeitos
+  const fps = 1/dt; fpsAvg = fpsAvg*0.9 + fps*0.1;
+  lowPerf = fpsAvg < 35;
+
+  // canvas size sem ResizeObserver
+  syncCanvasSize();
 
   const calc = computeOperatingPoint(hardStop?0:V, PRESET);
   const rpm=hardStop?0:calc.rpm;
@@ -378,18 +373,18 @@ function step(ts){
   angle=(angle + w*dt)%(Math.PI*2);
   const deg=angle*180/Math.PI;
 
-  // translate -> rotate (ordem correta)
   blades.setAttribute('transform',`translate(300,300) rotate(${deg})`);
 
-  const blur = clamp(rpm/600,0,10);
-  blurNode.setAttribute('stdDeviation', String(blur));
+  // Blur adaptativo: desliga se FPS baixo
+  const blur = lowPerf ? 0 : clamp(rpm/600,0,10);
+  if (blurNode) blurNode.setAttribute('stdDeviation', String(blur));
 
-  // térmico (RC)
-  const tau = PRESET.Rth*PRESET.Cth; // s*K/W
+  // térmico
+  const tau = PRESET.Rth*PRESET.Cth;
   const dT = (calc.losses*PRESET.Rth - (temp-PRESET.Tamb)) / Math.max(tau,1e-6);
-  temp += dT*dt*1000; // ganho para resposta visual (mantido)
+  temp += dT*dt*1000;
 
-  // acumuladores de evento
+  // acumuladores
   if(calc.I > 1.8*PRESET.In_rated) overISeconds += dt; else overISeconds = Math.max(0, overISeconds - dt*0.5);
   if(rpm < 280 && calc.I > 1.2*PRESET.In_rated) stalledSeconds += dt; else stalledSeconds = Math.max(0, stalledSeconds - dt*0.5);
 
@@ -428,13 +423,18 @@ function step(ts){
   hud.textContent = `${calc.rpm.toFixed(0)} rpm • ${temp.toFixed(0)} °C`;
   warnOverlay.setAttribute('fill-opacity', temp>PRESET.T_warn ? '0.06' : '0');
 
-  // Smoke
-  if(!seed) seed=ts; const sdt=(ts-seed)/1000; seed=ts;
-  sctx.clearRect(0,0,size.w,size.h);
-  if(smokeOn && Math.random()<0.6) spawn();
-  parts.forEach(p=>{ p.t+=sdt; p.x+=p.vx*sdt; p.y+=p.vy*sdt; p.r*=(1+sdt*0.2); p.a*=(1 - sdt*0.65);
-    sctx.beginPath(); sctx.arc(p.x,p.y,p.r,0,Math.PI*2); sctx.fillStyle=`rgba(100,100,110,${clamp(p.a,0,0.5)})`; sctx.fill(); });
-  parts = parts.filter(p=> p.t<p.life && p.a>0.02);
+  // Smoke (com guardas)
+  if(sctx){
+    if(!seed) seed=ts; const sdt=Math.max(0,(ts-seed)/1000); seed=ts;
+    sctx.clearRect(0,0,sizeW,sizeH);
+    if(smokeOn && Math.random()<(lowPerf?0.4:0.6)) spawn();
+    parts.forEach(p=>{
+      p.t+=sdt; p.x+=p.vx*sdt; p.y+=p.vy*sdt; p.r*=(1+sdt*0.2); p.a=Math.max(0, p.a*(1 - sdt*0.65));
+      sctx.beginPath(); sctx.arc(p.x,p.y,Math.max(0.1,p.r),0,Math.PI*2);
+      sctx.fillStyle=`rgba(100,100,110,${clamp(p.a,0,0.5)})`; sctx.fill();
+    });
+    parts = parts.filter(p=> p.t<p.life && p.a>0.02);
+  }
 
   // Shards
   if(shardObjs.length){
@@ -460,15 +460,17 @@ function runSelfTests(){
     { name:'V=127 próximo do nominal', test:()=>{ const c=computeOperatingPoint(127, PRESET); return {pass:c.rpm>900 && c.rpm<c.rpmSync && c.I>0.2, msg:`rpm=${c.rpm.toFixed(0)}, slip=${(c.slip*100).toFixed(1)}%`}; } },
     { name:'V=220 não deve estar OK', test:()=>{ const c=computeOperatingPoint(220, PRESET); const r=classifyRisk(c, PRESET); return {pass:r.level!=='OK' && c.I>PRESET.In_rated, msg:`risk=${r.level}, I=${c.I.toFixed(2)}`}; } },
     { name:'Subtensão (60 V) deve reduzir rpm', test:()=>{ const c=computeOperatingPoint(60, PRESET); return {pass:c.rpm<400, msg:`rpm=${c.rpm.toFixed(0)}`}; } },
-    { name:'rpm < síncrona (127 V)', test:()=>{ const c=computeOperatingPoint(127, PRESET); return {pass:c.rpm>=0 && c.rpm<c.rpmSync, msg:`rpm=${c.rpm.toFixed(0)} < rpmSync=${c.rpmSync.toFixed(0)}`}; } },
-    { name:'Veff clampado em 240 V', test:()=>{ const c=computeOperatingPoint(1000, PRESET); return {pass:c.Veff<=240 && c.Veff>=0, msg:`Veff=${c.Veff.toFixed(0)}`}; } },
+    { name:'rpm < síncrona (127 V)', test:()=>{ const c=computeOperatingPoint(127, PRESET); return {pass:c.rpm>=0 && c.rpm<c.rpmSync, msg:`rpm=${c.rpmSync.toFixed(0)} sync`}; } },
+    { name:'Veff clampado', test:()=>{ const c=computeOperatingPoint(1000, PRESET); return {pass:c.Veff<=240 && c.Veff>=0, msg:`Veff=${c.Veff.toFixed(0)}`}; } },
     { name:'Energia: Pin >= Pout', test:()=>{ const c=computeOperatingPoint(127, PRESET); return {pass:c.Pin>=c.Pout && c.losses>=0, msg:`Pin=${c.Pin.toFixed(0)} Pout=${c.Pout.toFixed(0)} losses=${c.losses.toFixed(0)}`}; } },
   ];
   const mount = document.getElementById('tests'); mount.innerHTML='';
   T.forEach(t=>{ const r=t.test(); console.log('[TEST]', t.name, r.pass?'OK':'FAIL', r.msg);
-    const row=document.createElement('div'); row.className=r.pass?'ok':'fail'; row.textContent = `${t.name} — ${r.msg}`; mount.appendChild(row); });
+    const row=document.createElement('div'); row.className=r.pass?'ok':'fail';
+    row.textContent = `${t.name} — ${r.msg}`; mount.appendChild(row); });
 }
 runSelfTests();
 </script>
 </body>
 </html>
+
