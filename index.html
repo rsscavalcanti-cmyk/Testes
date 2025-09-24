@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ventilador 127 V — Simulação 0–220 V (HTML)</title>
+  <style>
+    :root{ --bg:#f5f7fb; --ink:#0f172a; --muted:#475569; --card:#ffffff; --line:#cbd5e1; --ok:#16a34a; --warn:#f59e0b; --bad:#ef4444; }
+    *{box-sizing:border-box}
+    html,body{height:100%; margin:0}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",sans-serif;background:var(--bg);color:var(--ink)}
+    .container{min-height:100%;display:flex;flex-direction:column}
+    header{position:sticky;top:0;background:rgba(255,255,255,.8);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+    .wrap{max-width:1100px;margin:0 auto;padding:12px 16px}
+    h1{font-size:20px;margin:0 0 2px}
+    .muted{color:#64748b}
+    main{display:grid;grid-template-rows:1fr auto;flex:1}
+    .fan-area{position:relative;display:flex;align-items:center;justify-content:center;padding:8px}
+    .fan-box{position:relative;width:min(92vw,620px);aspect-ratio:1/1}
+    .controls{background:#fff;border-top:1px solid var(--line)}
+    .grid{display:grid;gap:12px}
+    @media(min-width:860px){ .grid-cols{grid-template-columns:1fr auto} }
+    .metric{border:1px solid var(--line);border-radius:14px;background:#fff;padding:10px}
+    .metric .label{font-size:12px;color:#64748b}
+    .metric .value{font-size:18px;font-weight:600}
+    .badge{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:14px}
+    .row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    @media(min-width:860px){ .row{grid-template-columns:repeat(3,minmax(0,1fr))} }
+    button{cursor:pointer}
+    .btn{border-radius:10px;padding:8px 12px;border:1px solid var(--line);background:#fff}
+    .btn.primary{background:#0f172a;color:#fff;border-color:#0f172a}
+    ul.tiny{font-size:12px;color:#64748b}
+    /* risk colors */
+    .r-ok{background:#dcfce7;color:#166534;border-color:#86efac}
+    .r-attn{background:#fde68a;color:#92400e;border-color:#fcd34d}
+    .r-now{background:#fed7aa;color:#7c2d12;border-color:#fdba74}
+    .r-crit{background:#fecdd3;color:#881337;border-color:#fda4af}
+    /* progress meter */
+    .meter{height:6px;width:96px;background:rgba(255,255,255,.6);border-radius:6px;overflow:hidden}
+    .meter>i{display:block;height:100%;background:currentColor;opacity:.6}
+    /* tests list */
+    #tests{font-size:12px}
+    #tests .ok{color:#065f46}
+    #tests .fail{color:#991b1b}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="wrap" style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px">
+        <div>
+          <h1>Ventilador 127 V — Simulação 0–220 V</h1>
+          <div class="muted" style="font-size:12px">Subtensão, sobretensão, aquecimento, fumaça e falha catastrófica (visual didático).</div>
+        </div>
+        <div class="muted" style="font-size:12px">
+          <b>síncrona</b>: <span id="rpmSyncLbl">—</span> rpm • <b>pf</b>: <span id="pfLbl">—</span> • <b>η</b>: <span id="etaLbl">—</span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div class="fan-area" id="shakeHost">
+        <div class="fan-box">
+          <!-- SVG FAN -->
+          <svg id="fan" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%">
+            <defs>
+              <filter id="motionBlur" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur id="blurNode" stdDeviation="0" edgeMode="duplicate"/>
+              </filter>
+              <radialGradient id="hub" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#cbd5e1"/>
+                <stop offset="100%" stop-color="#64748b"/>
+              </radialGradient>
+              <linearGradient id="blade" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#e2e8f0"/>
+                <stop offset="100%" stop-color="#94a3b8"/>
+              </linearGradient>
+            </defs>
+
+            <g opacity="0.9">
+              <rect x="280" y="510" width="40" height="70" rx="8" fill="#475569"/>
+              <rect x="220" y="575" width="160" height="18" rx="9" fill="#334155"/>
+            </g>
+
+            <circle cx="300" cy="300" r="230" fill="#f8fafc" stroke="#cbd5e1" stroke-width="6"/>
+
+            <g opacity="0.6">
+              <script><!-- grid lines created by JS --></script>
+            </g>
+
+            <!-- Spokes / Rings -->
+            <g id="guard"></g>
+
+            <!-- Rotating group -->
+            <g id="blades" filter="url(#motionBlur)" transform="rotate(0) translate(300,300)">
+              <g transform="rotate(0)" id="b0" opacity="0.6"><path d="M0,0 C 12,-18 70,-28 180,-10 C 196,-8 202,10 190,18 C 150,46 84,72 8,52 Z" fill="url(#blade)" stroke="#64748b" stroke-width="0.5"/></g>
+              <g transform="rotate(120)" id="b1" opacity="0.6"><path d="M0,0 C 12,-18 70,-28 180,-10 C 196,-8 202,10 190,18 C 150,46 84,72 8,52 Z" fill="url(#blade)" stroke="#64748b" stroke-width="0.5"/></g>
+              <g transform="rotate(240)" id="b2" opacity="0.6"><path d="M0,0 C 12,-18 70,-28 180,-10 C 196,-8 202,10 190,18 C 150,46 84,72 8,52 Z" fill="url(#blade)" stroke="#64748b" stroke-width="0.5"/></g>
+              <circle cx="0" cy="0" r="22" fill="url(#hub)" stroke="#475569"/>
+            </g>
+
+            <g id="shards"></g>
+
+            <text x="300" y="560" text-anchor="middle" font-size="16" fill="#334155" id="hud">— rpm • — °C</text>
+
+            <circle cx="300" cy="300" r="230" id="warnOverlay" fill="transparent"/>
+          </svg>
+          <canvas id="smoke" class="smoke" style="position:absolute;inset:0;pointer-events:none"></canvas>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="wrap grid grid-cols">
+          <div>
+            <div style="font-size:14px;display:flex;justify-content:space-between"><span>0 V</span><b><span id="vLbl">127</span> V</b><span>220 V</span></div>
+            <input id="voltage" type="range" min="0" max="220" step="1" value="127" style="width:100%" />
+            <div class="muted" style="font-size:12px;margin-top:4px">Tensão efetiva (aplicada) = <span id="veffLbl">127</span> V</div>
+          </div>
+
+          <div class="grid row" style="margin-top:12px">
+            <div class="metric"><div class="label">Velocidade</div><div class="value" id="rpmLbl">—</div><div class="label">Slip <span id="slipLbl">—</span>%</div></div>
+            <div class="metric"><div class="label">Corrente</div><div class="value" id="iLbl">— A</div><div class="label">In 0.95 A</div></div>
+            <div class="metric"><div class="label">P. saída</div><div class="value" id="poutLbl">— W</div><div class="label">Torque <span id="torqueLbl">—</span> N·m</div></div>
+            <div class="metric"><div class="label">Perdas</div><div class="value" id="lossLbl">— W</div><div class="label">Pin <span id="pinLbl">—</span> W</div></div>
+            <div class="metric"><div class="label">Temp. est.</div><div class="value" id="tempLbl">— °C</div><div class="label">Amb. 25 °C</div></div>
+            <div class="metric"><div class="label">Modo</div><div class="value" id="modeLbl">—</div><div class="label" id="tipLbl">—</div></div>
+          </div>
+
+          <div class="badge r-ok" id="riskBadge" style="margin:6px 0">Risco: <span id="riskLbl">OK</span>
+            <span class="meter"><i id="sevBar" style="width:0%"></i></span>
+          </div>
+
+          <div style="display:flex;gap:8px;font-size:12px;flex-wrap:wrap;margin:6px 0 4px">
+            <button class="btn primary" id="resetBtn">Reset</button>
+            <button class="btn" id="pauseBtn">Pausar</button>
+            <span id="hardStopLbl" style="color:#9f1239;display:none">Falha catastrófica simulada: motor travado</span>
+          </div>
+
+          <ul class="tiny">
+            <li><b>Subtensão</b>: risco de não partir e aquecimento por slip elevado (I↑, perdas↑).</li>
+            <li><b>Sobretensão</b>: perdas↑, ruído↑, estresse dielétrico↑ — acima de ~195 V (em motor 127 V) pode haver falha severa.</li>
+            <li>Fumaça/estouro são <b>efeitos visuais didáticos</b> para frisar limites perigosos.</li>
+          </ul>
+
+          <details style="margin-top:8px">
+            <summary style="font-size:12px;cursor:pointer">Testes internos (ver no console também)</summary>
+            <div id="tests" style="margin-top:8px"></div>
+          </details>
+        </div>
+      </div>
+    </main>
+  </div>
+
+<script>
+// ===== Utilidades =====
+const rpmToRad = (rpm) => (rpm * 2 * Math.PI) / 60;
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+// ===== Parâmetros =====
+const PRESET = {
+  Vn:127,f:60,poles:4,rpm_nom:1550,Kt:0.55,Kf:0.48,eta:0.74,pf:0.86,In_rated:0.95,Pcore:24,
+  Tamb:25,T_warn:110,T_smoke:135,T_boom:170,Rth:0.55,Cth:1400
+};
+
+// ===== Estado =====
+let V = 127;
+let hardStop = false, smokeOn=false, boomOn=false, paused=false;
+let temp = PRESET.Tamb, overISeconds=0, stalledSeconds=0;
+let angle = 0, lastT=0, shock=0;
+
+// ===== DOM =====
+const voltage = document.getElementById('voltage');
+const vLbl = document.getElementById('vLbl');
+const veffLbl = document.getElementById('veffLbl');
+const rpmLbl = document.getElementById('rpmLbl');
+const slipLbl = document.getElementById('slipLbl');
+const iLbl = document.getElementById('iLbl');
+const poutLbl = document.getElementById('poutLbl');
+const torqueLbl = document.getElementById('torqueLbl');
+const lossLbl = document.getElementById('lossLbl');
+const pinLbl = document.getElementById('pinLbl');
+const tempLbl = document.getElementById('tempLbl');
+const modeLbl = document.getElementById('modeLbl');
+const tipLbl = document.getElementById('tipLbl');
+const riskLbl = document.getElementById('riskLbl');
+const sevBar = document.getElementById('sevBar');
+const riskBadge = document.getElementById('riskBadge');
+const hardStopLbl = document.getElementById('hardStopLbl');
+const pauseBtn = document.getElementById('pauseBtn');
+const resetBtn = document.getElementById('resetBtn');
+const shakeHost = document.getElementById('shakeHost');
+const blades = document.getElementById('blades');
+const blurNode = document.getElementById('blurNode');
+const hud = document.getElementById('hud');
+const warnOverlay = document.getElementById('warnOverlay');
+const shardsGroup = document.getElementById('shards');
+const rpmSyncLbl = document.getElementById('rpmSyncLbl');
+const pfLbl = document.getElementById('pfLbl');
+const etaLbl = document.getElementById('etaLbl');
+
+rpmSyncLbl.textContent = ((120*PRESET.f)/PRESET.poles).toFixed(0);
+pfLbl.textContent = PRESET.pf.toFixed(2);
+etaLbl.textContent = PRESET.eta.toFixed(2);
+
+// Build guard spokes/rings once
+(function(){
+  const g = document.getElementById('guard');
+  for(let i=0;i<16;i++){
+    const a = (i/16)*Math.PI*2;
+    const x1 = 300 + Math.cos(a)*80, y1=300 + Math.sin(a)*80;
+    const x2 = 300 + Math.cos(a)*220, y2=300 + Math.sin(a)*220;
+    const l = document.createElementNS('http://www.w3.org/2000/svg','line');
+    l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);
+    l.setAttribute('stroke','#94a3b8'); l.setAttribute('stroke-width','1'); g.appendChild(l);
+  }
+  for(let i=0;i<7;i++){
+    const r = 90 + i*20;
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx',300); c.setAttribute('cy',300); c.setAttribute('r',r);
+    c.setAttribute('fill','none'); c.setAttribute('stroke','#94a3b8'); c.setAttribute('stroke-width','1');
+    g.appendChild(c);
+  }
+})();
+
+// ===== Modelo =====
+function computeOperatingPoint(Vv,M){
+  const { Vn,f,poles,rpm_nom,Kt,Kf,eta,pf,Pcore } = M;
+  const rpmSync = (120*f)/poles; const wSync = rpmToRad(rpmSync); const wNom = rpmToRad(rpm_nom);
+  const Veff = clamp(Vv,0,240); const puV = Veff/Vn;
+  const Kt_eff = Kt * (puV<=1.6 ? puV**2 : (1.6**2)*(1+0.35*(puV-1.6)));
+  const Pcore_eff = Pcore * (0.5 + 0.5*puV**2);
+  const Tm = (w)=> Kt_eff * Math.max(0, 1 - w/(wSync*(0.995 - 0.02*Math.max(puV-1,0))));
+  const Tl = (w)=> Kf * (w/wNom)**2 + 0.01;
+  let lo=1e-3, hi=wSync*0.999, wEq=0; for(let i=0;i<90;i++){ const mid=0.5*(lo+hi); const fmid=Tm(mid)-Tl(mid); const flo=Tm(lo)-Tl(lo); if(Math.sign(fmid)===Math.sign(flo)) lo=mid; else hi=mid; wEq=mid; }
+  if(Veff<70) wEq *= (Veff/70);
+  const rpm = (wEq*60)/(2*Math.PI); const slip = 1 - wEq/wSync; const torque = Math.max(0,Tm(wEq)); const Pout = torque*wEq;
+  const extraCopper = (puV>1 ? (puV-1)*60 : 0);
+  const PinNoCore = Pout / Math.max(eta - 0.06*Math.max(puV-1,0), 0.05);
+  const Pin = PinNoCore + Pcore_eff + extraCopper;
+  const I = Pin / Math.max(Veff * pf * (0.98-0.05*Math.max(puV-1,0)), 1e-3);
+  const losses = Math.max(Pin - Pout, 0);
+  return { Veff,rpmSync,rpm,slip,torque,Pout,Pin,losses,I,pf,eta };
+}
+
+function classifyRisk(c,M){
+  const In = M.In_rated; const overV = c.Veff>127; const underV = c.Veff<120; const stalled = c.rpm<280 && c.I>1.2*In;
+  let S = 0; S += clamp((c.I/In - 1)*42,0,42); S += clamp((c.losses/120 -1)*30,0,30); S += clamp((c.slip-0.06)*320,0,18); if(c.Veff>180) S+=10;
+  let level = 'OK'; if(S>=60 && S<80) level='Ação imediata'; else if(S>=40 && S<60) level='Atenção'; else if(S>=80) level='Falha iminente';
+  let mode='Nominal', tip='Operação próxima do normal.'; if(underV && !stalled){mode='Subtensão'; tip='Slip e aquecimento tendem a subir.'} if(stalled){mode='Travado'; tip='Risco térmico alto — corrente e perdas elevadas sem ventilação.'} if(overV){mode='Sobretensão'; tip='Perdas e estresse dielétrico sobem; cuidado com aquecimento.'}
+  return { level,S:Math.round(S),mode,tip };
+}
+
+// ===== Interação =====
+voltage.addEventListener('input', e=>{ V = Number(e.target.value); vLbl.textContent=V.toFixed(0); });
+resetBtn.addEventListener('click', ()=>{ hardStop=false; smokeOn=false; boomOn=false; temp=PRESET.Tamb; overISeconds=0; stalledSeconds=0; angle=0; lastT=0; shock=0; shardsGroup.innerHTML=''; blades.setAttribute('transform','rotate(0) translate(300,300)'); hardStopLbl.style.display='none'; });
+pauseBtn.addEventListener('click', ()=>{ paused=!paused; pauseBtn.textContent = paused? 'Continuar':'Pausar'; });
+
+// ===== Fumaça (canvas) =====
+const smokeCanvas = document.getElementById('smoke');
+const sctx = smokeCanvas.getContext('2d');
+let DPR = window.devicePixelRatio||1; let parts=[]; let seed=0; let ro=null; let size={w:0,h:0};
+function applyResize(w,h){ w=Math.max(1,Math.floor(w)); h=Math.max(1,Math.floor(h)); if(w===size.w && h===size.h) return; size.w=w; size.h=h; requestAnimationFrame(()=>{ smokeCanvas.width=w*DPR; smokeCanvas.height=h*DPR; sctx.setTransform(DPR,0,0,DPR,0,0); }); }
+(function(){ const rect=smokeCanvas.getBoundingClientRect(); applyResize(rect.width,rect.height); if('ResizeObserver' in window){ ro=new ResizeObserver((entries)=>{ const {width,height}=entries[0].contentRect; requestAnimationFrame(()=>applyResize(width,height)); }); ro.observe(smokeCanvas);} })();
+function spawn(){ const w=size.w,h=size.h; for(let i=0;i<(smokeOn?6:1);i++){ const x=w*0.5 + (Math.random()*80-40); const y=h*0.58 + 30 + (Math.random()*20-10); parts.push({x,y,r:8+Math.random()*18,vy:-20 - Math.random()*30,vx:(Math.random()*16-8),a:0.35,life:1.2+Math.random()*1.4,t:0}); } }
+
+// ===== Estilhaços =====
+let shardObjs=[];
+function makeShards(){ const N=9; const out=[]; for(let i=0;i<N;i++){ const ang=(i/N)*Math.PI*2 + (Math.random()*0.6-0.3); const speed=220+Math.random()*220; out.push({x:300,y:300,vx:Math.cos(ang)*speed,vy:Math.sin(ang)*speed-60,rot:Math.random()*360,vr:(Math.random()*360-180),life:2.8+Math.random()*1.5,t:0,dead:false,el:null}); } return out; }
+function mountShards(){ shardsGroup.innerHTML=''; shardObjs.forEach(s=>{ const g=document.createElementNS('http://www.w3.org/2000/svg','g'); const p=document.createElementNS('http://www.w3.org/2000/svg','path'); p.setAttribute('d','M0,0 C 8,-10 26,-16 60,-9 C 66,-8 68,3 64,6 C 49,18 28,26 3,19 Z'); p.setAttribute('fill','#e2e8f0'); p.setAttribute('stroke','#64748b'); p.setAttribute('stroke-width','0.6'); g.appendChild(p); shardsGroup.appendChild(g); s.el=g; }); }
+
+// ===== Loop =====
+function step(ts){ if(paused){ lastT=ts; return requestAnimationFrame(step); } if(!lastT) lastT=ts; const dt=(ts-lastT)/1000; lastT=ts;
+  const calc = computeOperatingPoint(hardStop?0:V, PRESET); const rpm=hardStop?0:calc.rpm; const w=rpmToRad(rpm); angle=(angle + w*dt)%(Math.PI*2); const deg=angle*180/Math.PI; blades.setAttribute('transform',`rotate(${deg}) translate(300,300)`);
+  const blur = clamp(rpm/600,0,10); blurNode.setAttribute('stdDeviation', blur.toString());
+  // térmico
+  const tau = PRESET.Rth*PRESET.Cth; const dT=(calc.losses*PRESET.Rth - (temp-PRESET.Tamb))/Math.max(tau,1e-6); temp += dT*dt*1000;
+  // acumuladores
+  if(calc.I > 1.8*PRESET.In_rated) overISeconds += dt; else overISeconds = Math.max(0, overISeconds - dt*0.5);
+  if(rpm < 280 && calc.I > 1.2*PRESET.In_rated) stalledSeconds += dt; else stalledSeconds = Math.max(0, stalledSeconds - dt*0.5);
+  smokeOn = !boomOn && (temp>=PRESET.T_smoke || overISeconds>3.5 || stalledSeconds>4.5);
+  const severeOverV = calc.Veff>195 && rpm > calc.rpmSync*0.85; const doBoom = !boomOn && (temp>=PRESET.T_boom || severeOverV || (calc.I>2.6*PRESET.In_rated && overISeconds>1.8));
+  if(doBoom){ boomOn=true; hardStop=true; shardObjs = makeShards(); mountShards(); shock=1; hardStopLbl.style.display='inline'; }
+  shock = Math.max(0, shock - dt*1.2); if(shock>0){ const j=8*shock; shakeHost.style.transform=`translate(${(Math.random()-0.5)*j}px, ${(Math.random()-0.5)*j}px)`; } else { shakeHost.style.transform='none'; }
+
+  // UI labels
+  vLbl.textContent = V.toFixed(0); veffLbl.textContent = calc.Veff.toFixed(0); rpmLbl.textContent = `${calc.rpm.toFixed(0)} rpm`; slipLbl.textContent = (calc.slip*100).toFixed(1);
+  iLbl.textContent = `${calc.I.toFixed(2)} A`; poutLbl.textContent = `${calc.Pout.toFixed(0)} W`; torqueLbl.textContent = calc.torque.toFixed(2); lossLbl.textContent = `${calc.losses.toFixed(0)} W`; pinLbl.textContent = calc.Pin.toFixed(0); tempLbl.textContent = `${temp.toFixed(0)} °C`;
+  const risk = classifyRisk(calc, PRESET); modeLbl.textContent = risk.mode; tipLbl.textContent = risk.tip; riskLbl.textContent = risk.level; sevBar.style.width = `${clamp(risk.S,0,100)}%`;
+  riskBadge.classList.remove('r-ok','r-attn','r-now','r-crit');
+  riskBadge.classList.add(risk.level==='OK'?'r-ok':risk.level==='Atenção'?'r-attn':risk.level==='Ação imediata'?'r-now':'r-crit');
+  hud.textContent = `${calc.rpm.toFixed(0)} rpm • ${temp.toFixed(0)} °C`;
+  warnOverlay.setAttribute('fill', temp>PRESET.T_warn ? 'rgba(250,204,21,0.06)' : 'transparent');
+
+  // Smoke particles
+  if(!seed) seed=ts; const sdt=(ts-seed)/1000; seed=ts; sctx.clearRect(0,0,size.w,size.h); if(smokeOn && Math.random()<0.6) spawn();
+  parts.forEach(p=>{ p.t+=sdt; p.x+=p.vx*sdt; p.y+=p.vy*sdt; p.r*=(1+sdt*0.2); p.a*=(1 - sdt*0.65); sctx.beginPath(); sctx.arc(p.x,p.y,p.r,0,Math.PI*2); sctx.fillStyle=`rgba(100,100,110,${clamp(p.a,0,0.5)})`; sctx.fill(); });
+  parts = parts.filter(p=> p.t<p.life && p.a>0.02);
+
+  // Shards physics
+  if(shardObjs.length){
+    shardObjs.forEach(s=>{ if(s.dead) return; s.vy += 90*dt; s.vx*= (1-0.15*dt); s.vy*=(1-0.12*dt); s.x+=s.vx*dt; s.y+=s.vy*dt; s.rot+=s.vr*dt; s.t+=dt; if(s.t>s.life) s.dead=true; if(s.el){ s.el.setAttribute('transform',`translate(${s.x},${s.y}) rotate(${s.rot})`); s.el.setAttribute('opacity', String(Math.max(0,1 - s.t/s.life))); } });
+    shardObjs = shardObjs.filter(s=>!s.dead);
+  }
+
+  requestAnimationFrame(step);
+}
+requestAnimationFrame(step);
+
+// ===== Testes =====
+function runSelfTests(){
+  const T=[
+    { name:'V=0 deve quase parar', test:()=>{ const c=computeOperatingPoint(0, PRESET); return {pass:c.rpm<50 && c.I<0.1, msg:`rpm=${c.rpm.toFixed(1)}, I=${c.I.toFixed(2)}`}; } },
+    { name:'V=127 próximo do nominal', test:()=>{ const c=computeOperatingPoint(127, PRESET); return {pass:c.rpm>900 && c.rpm<c.rpmSync && c.I>0.2, msg:`rpm=${c.rpm.toFixed(0)}, slip=${(c.slip*100).toFixed(1)}%`}; } },
+    { name:'V=220 não deve estar OK', test:()=>{ const c=computeOperatingPoint(220, PRESET); const r=classifyRisk(c, PRESET); return {pass:r.level!=='OK' && c.I>PRESET.In_rated, msg:`risk=${r.level}, I=${c.I.toFixed(2)}`}; } },
+    { name:'Subtensão (60 V) deve reduzir rpm', test:()=>{ const c=computeOperatingPoint(60, PRESET); return {pass:c.rpm<400, msg:`rpm=${c.rpm.toFixed(0)}`}; } },
+    // novos
+    { name:'rpm sempre abaixo da síncrona (127 V)', test:()=>{ const c=computeOperatingPoint(127, PRESET); return {pass:c.rpm>=0 && c.rpm<c.rpmSync, msg:`rpm=${c.rpm.toFixed(0)} < rpmSync=${c.rpmSync.toFixed(0)}`}; } },
+    { name:'Veff é clampado em 240 V', test:()=>{ const c=computeOperatingPoint(1000, PRESET); return {pass:c.Veff<=240 && c.Veff>=0, msg:`Veff=${c.Veff.toFixed(0)}`}; } },
+    { name:'Conservação de potência (Pin >= Pout)', test:()=>{ const c=computeOperatingPoint(127, PRESET); return {pass:c.Pin>=c.Pout && c.losses>=0, msg:`Pin=${c.Pin.toFixed(0)} Pout=${c.Pout.toFixed(0)} losses=${c.losses.toFixed(0)}`}; } },
+  ];
+  const mount = document.getElementById('tests'); mount.innerHTML='';
+  T.forEach(t=>{ const r=t.test(); console.log('[TEST]', t.name, r.pass?'OK':'FAIL', r.msg); const row=document.createElement('div'); row.className=r.pass?'ok':'fail'; row.textContent = `${t.name} — ${r.msg}`; mount.appendChild(row); });
+}
+runSelfTests();
+
+</script>
+</body>
+</html>
