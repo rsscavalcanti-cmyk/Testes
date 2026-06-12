@@ -1,0 +1,19 @@
+{
+  "name": "Harpa",
+  "short_name": "Harpa",
+  "description": "Harpa de cordas para tocar com os dedos — multi-toque, vibração e sensores.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#0b1020",
+  "theme_color": "#0b1020",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
