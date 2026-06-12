@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b1020">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Harpa</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+    background: #0b1020;
+    font-family: system-ui, -apple-system, sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #harpCanvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+    display: block;
+  }
+  #topBar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
+    padding: max(8px, env(safe-area-inset-top)) 12px 8px;
+    z-index: 10;
+    pointer-events: none;
+  }
+  #topBar select {
+    pointer-events: auto;
+    background: rgba(255,255,255,0.08);
+    color: #cdd6f4;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    padding: 7px 10px;
+    font-size: 13px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  #overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: radial-gradient(ellipse at 50% 30%, #16204a 0%, #0b1020 70%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    color: #e2e8f0;
+    cursor: pointer;
+  }
+  #overlay h1 { font-size: 42px; font-weight: 700; letter-spacing: 2px; }
+  #overlay p { font-size: 17px; opacity: 0.75; }
+  #overlay .hint { font-size: 13px; opacity: 0.45; max-width: 280px; text-align: center; line-height: 1.5; margin-top: 10px; }
+  #overlay.hidden { display: none; }
+  .pulse { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: .75; } 50% { opacity: 1; } }
+</style>
+</head>
+<body>
+<canvas id="harpCanvas"></canvas>
+
+<div id="topBar">
+  <select id="selScale" aria-label="Escala">
+    <option value="pentMaior" selected>Pentatônica Maior</option>
+    <option value="pentMenor">Pentatônica Menor</option>
+    <option value="maior">Maior</option>
+    <option value="menor">Menor</option>
+  </select>
+  <select id="selTonic" aria-label="Tom">
+    <option value="60" selected>Dó (C)</option>
+    <option value="62">Ré (D)</option>
+    <option value="64">Mi (E)</option>
+    <option value="55">Sol (G)</option>
+    <option value="57">Lá (A)</option>
+  </select>
+</div>
+
+<div id="overlay">
+  <h1>Harpa</h1>
+  <p class="pulse">Toque para começar 🎵</p>
+  <p class="hint">Deslize o dedo pelas cordas para tocar.<br>Incline o celular para mudar o brilho do som.</p>
+</div>
+
+<script>
+'use strict';
+
+/* ============================== CONFIG ============================== */
+
+const CONFIG = {
+  scales: {
+    pentMaior: [0, 2, 4, 7, 9],
+    pentMenor: [0, 3, 5, 7, 10],
+    maior:     [0, 2, 4, 5, 7, 9, 11],
+    menor:     [0, 2, 3, 5, 7, 8, 10],
+  },
+  stringsPortrait: 8,
+  stringsLandscape: 13,
+  pluckThrottleMs: 70,     // anti double-trigger por corda
+  hapticMs: 8,
+  variantsPerNote: 3,      // variações de excitação por nota (evita som "metralhadora")
+  tilt: {
+    deadzoneDeg: 5,
+    rangeDeg: 25,
+    cutoffMin: 800,
+    cutoffMax: 8000,
+    cutoffFallback: 5000,
+  },
+};
+
+const NOTE_NAMES = ['Dó','Dó#','Ré','Ré#','Mi','Fá','Fá#','Sol','Sol#','Lá','Lá#','Si'];
+
+const midiToFreq = (m) => 440 * Math.pow(2, (m - 69) / 12);
+
+/* ============================== STRINGS (modelo) ============================== */
+
+const Strings = {
+  list: [],   // {x, midi, freq, label, hue, amp, phase, lastPluck}
+  hitRadius: 16,
+
+  rebuild(cssW, cssH) {
+    const count = cssW > cssH ? CONFIG.stringsLandscape : CONFIG.stringsPortrait;
+    const tonic = parseInt(document.getElementById('selTonic').value, 10);
+    const intervals = CONFIG.scales[document.getElementById('selScale').value];
+    const marginX = cssW * 0.07;
+    const span = cssW - marginX * 2;
+    const gap = count > 1 ? span / (count - 1) : 0;
+    this.hitRadius = Math.max(14, gap * 0.38);
+
+    this.list = [];
+    let oct = 0, idx = 0;
+    for (let i = 0; i < count; i++) {
+      const midi = tonic + intervals[idx] + 12 * oct;
+      idx++;
+      if (idx === intervals.length) { idx = 0; oct++; }
+      this.list.push({
+        x: marginX + gap * i,
+        midi,
+        freq: midiToFreq(midi),
+        label: NOTE_NAMES[midi % 12],
+        hue: 200 + (140 * i) / Math.max(1, count - 1), // azul → rosa
+        amp: 0,
+        phase: 0,
+        lastPluck: 0,
+      });
+    }
+  },
+};
+
+/* ============================== AUDIO ENGINE ============================== */
+
+const AudioEngine = {
+  ctx: null,
+  master: null,
+  lowpass: null,
+  buffers: new Map(),       // midi -> [AudioBuffer, ...]
+  targetCutoff: CONFIG.tilt.cutoffFallback,
+  currentCutoff: CONFIG.tilt.cutoffFallback,
+
+  init() {
+    if (this.ctx) return;
+    const ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+    this.ctx = ctx;
+
+    this.lowpass = ctx.createBiquadFilter();
+    this.lowpass.type = 'lowpass';
+    this.lowpass.frequency.value = this.currentCutoff;
+    this.lowpass.Q.value = 0.5;
+
+    const dry = ctx.createGain();
+    dry.gain.value = 0.85;
+
+    const convolver = ctx.createConvolver();
+    convolver.buffer = this.makeReverbImpulse(1.8);
+    const wet = ctx.createGain();
+    wet.gain.value = 0.35;
+
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -14;
+    comp.ratio.value = 5;
+
+    this.master = ctx.createGain();
+    this.master.gain.value = 0.8;
+
+    this.lowpass.connect(dry).connect(comp);
+    this.lowpass.connect(convolver).connect(wet).connect(comp);
+    comp.connect(this.master).connect(ctx.destination);
+  },
+
+  resume() {
+    if (this.ctx && this.ctx.state !== 'running') this.ctx.resume();
+  },
+
+  makeReverbImpulse(seconds) {
+    const sr = this.ctx.sampleRate;
+    const len = Math.floor(sr * seconds);
+    const buf = this.ctx.createBuffer(2, len, sr);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      for (let i = 0; i < len; i++) {
+        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
+      }
+    }
+    return buf;
+  },
+
+  synthKS(freq) {
+    const sr = this.ctx.sampleRate;
+    const N = Math.round(sr / freq);
+    const dur = Math.min(3.5, Math.max(1.2, 6 / (freq / 110)));
+    const len = Math.floor(sr * dur);
+    const data = new Float32Array(len);
+
+    // excitação: ruído branco com lowpass one-pole (tira aspereza)
+    let prev = 0;
+    for (let i = 0; i < N && i < len; i++) {
+      const w = Math.random() * 2 - 1;
+      prev = 0.5 * w + 0.5 * prev;
+      data[i] = prev;
+    }
+
+    // decay 0.996 (grave) → 0.992 (agudo)
+    const t = Math.min(1, Math.max(0, (freq - 110) / (1760 - 110)));
+    const decay = 0.996 - 0.004 * t;
+
+    for (let i = N; i < len; i++) {
+      const a = data[i - N];
+      const b = i - N - 1 >= 0 ? data[i - N - 1] : a;
+      data[i] = decay * 0.5 * (a + b);
+    }
+
+    // fade-out 50ms (sem click no fim)
+    const fade = Math.min(len, Math.floor(sr * 0.05));
+    for (let i = 0; i < fade; i++) data[len - 1 - i] *= i / fade;
+
+    // normaliza pico para 0.8
+    let peak = 0;
+    for (let i = 0; i < len; i++) { const v = Math.abs(data[i]); if (v > peak) peak = v; }
+    if (peak > 0) { const g = 0.8 / peak; for (let i = 0; i < len; i++) data[i] *= g; }
+
+    const buf = this.ctx.createBuffer(1, len, sr);
+    buf.copyToChannel(data, 0);
+    return buf;
+  },
+
+  pregenerate() {
+    this.buffers.clear();
+    for (const s of Strings.list) {
+      const variants = [];
+      for (let v = 0; v < CONFIG.variantsPerNote; v++) variants.push(this.synthKS(s.freq));
+      this.buffers.set(s.midi, variants);
+    }
+  },
+
+  pluck(string, velocity) {
+    if (!this.ctx) return;
+    this.resume();
+    let variants = this.buffers.get(string.midi);
+    if (!variants) {
+      variants = [this.synthKS(string.freq)];
+      this.buffers.set(string.midi, variants);
+    }
+    const src = this.ctx.createBufferSource();
+    src.buffer = variants[(Math.random() * variants.length) | 0];
+    const g = this.ctx.createGain();
+    g.gain.value = 0.3 + 0.7 * velocity;
+    src.connect(g).connect(this.lowpass);
+    src.start();
+    src.onended = () => { src.disconnect(); g.disconnect(); };
+  },
+
+  // suavização do cutoff (chamada por frame no loop de render)
+  updateCutoff() {
+    if (!this.ctx) return;
+    this.currentCutoff += (this.targetCutoff - this.currentCutoff) * 0.06;
+    this.lowpass.frequency.setTargetAtTime(this.currentCutoff, this.ctx.currentTime, 0.05);
+  },
+};
+
+/* ============================== HAPTICS ============================== */
+
+const Haptics = {
+  last: 0,
+  tap() {
+    const now = performance.now();
+    if (now - this.last < 25) return;
+    this.last = now;
+    if (navigator.vibrate) navigator.vibrate(CONFIG.hapticMs);
+  },
+};
+
+/* ============================== SENSORS (inclinação → brilho) ============================== */
+
+const Sensors = {
+  neutralBeta: null,
+  gotEvent: false,
+  brightness: 0.5, // 0..1 para o indicador visual
+
+  start() {
+    window.addEventListener('deviceorientation', (e) => {
+      if (e.beta == null) return;
+      this.gotEvent = true;
+      if (this.neutralBeta == null) this.neutralBeta = e.beta; // calibra na postura natural
+      let d = e.beta - this.neutralBeta;
+      const { deadzoneDeg, rangeDeg, cutoffMin, cutoffMax } = CONFIG.tilt;
+      if (Math.abs(d) < deadzoneDeg) d = 0;
+      else d -= Math.sign(d) * deadzoneDeg;
+      const n = Math.max(-1, Math.min(1, d / (rangeDeg - deadzoneDeg))); // -1..1
+      this.brightness = (n + 1) / 2;
+      // mapeamento exponencial 800 Hz → 8 kHz
+      AudioEngine.targetCutoff = cutoffMin * Math.pow(cutoffMax / cutoffMin, this.brightness);
+    });
+    // sem sensor (desktop / desligado): segue com cutoff fixo
+    setTimeout(() => {
+      if (!this.gotEvent) {
+        AudioEngine.targetCutoff = CONFIG.tilt.cutoffFallback;
+        this.brightness = -1; // esconde indicador
+      }
+    }, 2000);
+  },
+};
+
+/* ============================== RENDERER ============================== */
+
+const Renderer = {
+  canvas: null,
+  ctx2d: null,
+  cssW: 0,
+  cssH: 0,
+  dpr: 1,
+  dirtyFrames: 2,
+
+  init() {
+    this.canvas = document.getElementById('harpCanvas');
+    this.ctx2d = this.canvas.getContext('2d');
+    const onResize = () => this.resize();
+    window.addEventListener('resize', onResize);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize);
+    this.resize();
+    requestAnimationFrame((t) => this.frame(t));
+  },
+
+  resize() {
+    this.cssW = document.documentElement.clientWidth;
+    this.cssH = document.documentElement.clientHeight;
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.canvas.width = Math.round(this.cssW * this.dpr);
+    this.canvas.height = Math.round(this.cssH * this.dpr);
+    Strings.rebuild(this.cssW, this.cssH);
+    if (AudioEngine.ctx) AudioEngine.pregenerate();
+    this.dirtyFrames = 2;
+  },
+
+  frame() {
+    AudioEngine.updateCutoff();
+
+    let animating = false;
+    for (const s of Strings.list) {
+      if (s.amp > 0.3) {
+        s.amp *= 0.94;
+        s.phase += s.freq / 30;
+        animating = true;
+      } else if (s.amp !== 0) {
+        s.amp = 0;
+        this.dirtyFrames = 2;
+      }
+    }
+    if (animating || this.dirtyFrames > 0) {
+      if (!animating) this.dirtyFrames--;
+      this.draw();
+    }
+    requestAnimationFrame(() => this.frame());
+  },
+
+  draw() {
+    const c = this.ctx2d;
+    const { cssW: w, cssH: h, dpr } = this;
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // fundo
+    const bg = c.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, '#121a38');
+    bg.addColorStop(1, '#0b1020');
+    c.fillStyle = bg;
+    c.fillRect(0, 0, w, h);
+
+    // indicador de brilho (inclinação) — barra fina no topo
+    if (Sensors.brightness >= 0) {
+      c.fillStyle = 'rgba(255,255,255,0.10)';
+      c.fillRect(w * 0.25, 54, w * 0.5, 3);
+      c.fillStyle = 'rgba(160,200,255,0.55)';
+      c.fillRect(w * 0.25, 54, w * 0.5 * Sensors.brightness, 3);
+    }
+
+    const top = 70;
+    const bottom = h - 46;
+    const n = Strings.list.length;
+
+    for (let i = 0; i < n; i++) {
+      const s = Strings.list[i];
+      const thick = 3.4 - (1.6 * i) / Math.max(1, n - 1); // grave mais grossa
+      const offset = s.amp > 0 ? s.amp * Math.sin(s.phase) : 0;
+      const color = `hsl(${s.hue}, 75%, 72%)`;
+
+      c.lineCap = 'round';
+
+      // sombra/halo
+      c.strokeStyle = `hsla(${s.hue}, 80%, 65%, ${s.amp > 0 ? 0.35 : 0.14})`;
+      c.lineWidth = thick + 5;
+      this.strokeString(c, s.x, top, bottom, offset);
+
+      // corda
+      c.strokeStyle = color;
+      c.lineWidth = thick;
+      this.strokeString(c, s.x, top, bottom, offset);
+
+      // rótulo da nota
+      c.fillStyle = `hsla(${s.hue}, 60%, 80%, 0.85)`;
+      c.font = '600 13px system-ui, sans-serif';
+      c.textAlign = 'center';
+      c.fillText(s.label, s.x, h - 20);
+    }
+  },
+
+  strokeString(c, x, top, bottom, offset) {
+    c.beginPath();
+    if (offset === 0) {
+      c.moveTo(x, top);
+      c.lineTo(x, bottom);
+    } else {
+      c.moveTo(x, top);
+      c.quadraticCurveTo(x + offset * 2, (top + bottom) / 2, x, bottom);
+    }
+    c.stroke();
+  },
+};
+
+/* ============================== INPUT (multi-toque + glissando) ============================== */
+
+const Input = {
+  pointers: new Map(), // pointerId -> {x, t}
+
+  init() {
+    const cv = Renderer.canvas;
+    cv.addEventListener('pointerdown', (e) => this.down(e));
+    cv.addEventListener('pointermove', (e) => this.move(e));
+    cv.addEventListener('pointerup', (e) => this.pointers.delete(e.pointerId));
+    cv.addEventListener('pointercancel', (e) => this.pointers.delete(e.pointerId));
+    window.addEventListener('contextmenu', (e) => e.preventDefault());
+  },
+
+  pluck(string, velocity) {
+    const now = performance.now();
+    if (now - string.lastPluck < CONFIG.pluckThrottleMs) return;
+    string.lastPluck = now;
+    AudioEngine.pluck(string, velocity);
+    Haptics.tap();
+    string.amp = 4 + 10 * velocity;
+    string.phase = 0;
+  },
+
+  down(e) {
+    AudioEngine.resume();
+    this.pointers.set(e.pointerId, { x: e.clientX, t: e.timeStamp });
+    // toca a corda mais próxima dentro do raio
+    let best = null, bestD = Strings.hitRadius;
+    for (const s of Strings.list) {
+      const d = Math.abs(e.clientX - s.x);
+      if (d < bestD) { bestD = d; best = s; }
+    }
+    if (best) this.pluck(best, 0.8);
+  },
+
+  move(e) {
+    const prev = this.pointers.get(e.pointerId);
+    if (!prev) return;
+    const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    let lastX = prev.x, lastT = prev.t;
+    for (const ev of (events.length ? events : [e])) {
+      const x = ev.clientX, t = ev.timeStamp;
+      if (x === lastX) continue;
+      const dt = Math.max(1, t - lastT);
+      const velocity = Math.max(0.3, Math.min(1, Math.abs(x - lastX) / dt / 3));
+      // cordas no sentido do movimento → arpejo na ordem certa
+      const list = x > lastX ? Strings.list : [...Strings.list].reverse();
+      for (const s of list) {
+        if ((lastX - s.x) * (x - s.x) <= 0 && lastX !== s.x) this.pluck(s, velocity);
+      }
+      lastX = x; lastT = t;
+    }
+    this.pointers.set(e.pointerId, { x: lastX, t: lastT });
+  },
+};
+
+/* ============================== UI (overlay, seletores, wake lock) ============================== */
+
+const UI = {
+  wakeLock: null,
+
+  async requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator) this.wakeLock = await navigator.wakeLock.request('screen');
+    } catch (_) { /* bateria baixa etc. — segue sem */ }
+  },
+
+  init() {
+    const overlay = document.getElementById('overlay');
+    overlay.addEventListener('pointerdown', async () => {
+      AudioEngine.init();
+      await AudioEngine.ctx.resume();
+      AudioEngine.pregenerate();
+      Sensors.start();
+      this.requestWakeLock();
+      overlay.classList.add('hidden');
+      // arpejo de confirmação
+      Strings.list.forEach((s, i) => {
+        setTimeout(() => Input.pluck(s, 0.6), i * 60);
+      });
+    }, { once: true });
+
+    const rebuild = () => {
+      Strings.rebuild(Renderer.cssW, Renderer.cssH);
+      if (AudioEngine.ctx) AudioEngine.pregenerate();
+      Renderer.dirtyFrames = 2;
+    };
+    document.getElementById('selScale').addEventListener('change', rebuild);
+    document.getElementById('selTonic').addEventListener('change', rebuild);
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        AudioEngine.resume();
+        this.requestWakeLock();
+      }
+    });
+  },
+};
+
+/* ============================== PWA ============================== */
+
+window.addEventListener('load', () => {
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+});
+
+/* ============================== BOOT ============================== */
+
+Renderer.init();
+Input.init();
+UI.init();
+</script>
+</body>
+</html>
