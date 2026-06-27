@@ -250,7 +250,7 @@ form{background:#fff;border:1px solid var(--line);border-radius:var(--radius);pa
   background:var(--bg-soft);border:1px solid var(--line);border-radius:30px;padding:8px 16px}
 
 /* ---------- Hero photo ---------- */
-.hero-visual .photo{aspect-ratio:4/3;object-fit:cover;width:100%}
+.hero-visual .photo{aspect-ratio:1/1;object-fit:cover;width:100%;background:#eef0f3}
 .hero-visual img.is-illustration{aspect-ratio:auto;object-fit:contain;background:#0b0c0f}
 
 /* ---------- Mission / Vision / Values ---------- */
