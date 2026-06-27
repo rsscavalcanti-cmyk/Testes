@@ -223,7 +223,7 @@ form{background:#fff;border:1px solid var(--line);border-radius:var(--radius);pa
 
 /* ---------- Footer ---------- */
 .site-footer{background:var(--ink);color:#9aa0a8;padding:64px 0 28px;font-size:.92rem}
-.footer-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:36px;margin-bottom:40px}
+.footer-grid{display:grid;grid-template-columns:1.8fr 1fr 1fr;gap:36px;margin-bottom:40px}
 .site-footer .fbrand img{height:52px;margin-bottom:16px;filter:brightness(0) invert(1)}
 .site-footer h4{color:#fff;font-size:.95rem;letter-spacing:.04em;margin-bottom:16px}
 .site-footer ul{list-style:none;padding:0;margin:0}
@@ -243,6 +243,11 @@ form{background:#fff;border:1px solid var(--line);border-radius:var(--radius);pa
 /* ---------- Reveal animation ---------- */
 .reveal{opacity:0;transform:translateY(24px);transition:.6s cubic-bezier(.2,.7,.2,1)}
 .reveal.in{opacity:1;transform:none}
+
+/* ---------- Norm pills ---------- */
+.pills{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-start}
+.pill{font-family:var(--display);font-weight:600;font-size:.82rem;color:var(--steel);
+  background:var(--bg-soft);border:1px solid var(--line);border-radius:30px;padding:8px 16px}
 
 /* ---------- Hero photo ---------- */
 .hero-visual .photo{aspect-ratio:4/3;object-fit:cover;width:100%}
