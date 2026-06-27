@@ -15,7 +15,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@500;600;700;800&family=Playfair+Display:wght@700;800;900&family=Cinzel:wght@500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/styles.css" />
 </head>
 <body>
@@ -24,7 +24,11 @@
 <header class="site-header" id="header">
   <div class="wrap nav">
     <a href="#top" class="brand" aria-label="WZ Montagens - página inicial">
-      <img src="assets/img/logo.svg" alt="WZ Montagens" />
+      <img class="mark" src="assets/img/gear.svg" alt="" aria-hidden="true" />
+      <span class="wordmark">
+        <span class="wz">W<span class="z">Z</span></span>
+        <span class="sub">MON<span class="t">T</span>AGENS</span>
+      </span>
     </a>
     <nav class="nav-links" id="navLinks">
       <a href="#sobre">A Empresa</a>
@@ -65,7 +69,9 @@
       </div>
     </div>
     <div class="hero-visual reveal">
-      <img src="assets/img/panel-qgbt.svg" alt="Quadro geral de baixa tensão montado pela WZ Montagens" />
+      <img class="photo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Motor_Control_Center_480_Volt.jpg/1100px-Motor_Control_Center_480_Volt.jpg"
+           alt="Centro de controle de motores (CCM) de baixa tensão montado"
+           loading="eager" onerror="this.onerror=null;this.src='assets/img/panel-qgbt.svg';this.classList.add('is-illustration')" />
       <div class="hero-tag">
         <div>
           <b>Sob medida</b>
@@ -123,6 +129,43 @@
   </div>
 </section>
 
+<!-- ============ MISSION / VISION / VALUES ============ -->
+<section class="mvv" id="mvv">
+  <div class="wrap">
+    <div class="center reveal" style="margin:0 auto;max-width:680px">
+      <span class="eyebrow">Nossa Essência</span>
+      <h2 class="section-title" style="margin:0 auto">Missão, Visão e Valores</h2>
+    </div>
+    <div class="mvv-grid">
+      <div class="mvv-card reveal">
+        <div class="mvv-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></svg></div>
+        <h3>Missão</h3>
+        <p>Projetar e montar painéis elétricos de baixa tensão seguros, confiáveis e
+           tecnicamente corretos, contribuindo para a continuidade operacional e a
+           eficiência energética dos nossos clientes.</p>
+      </div>
+      <div class="mvv-card reveal">
+        <div class="mvv-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></div>
+        <h3>Visão</h3>
+        <p>Ser referência regional em montagem de painéis elétricos, reconhecida pela
+           qualidade da engenharia, pelo cumprimento de prazos e pela parceria técnica
+           de longo prazo com cada cliente.</p>
+      </div>
+      <div class="mvv-card reveal">
+        <div class="mvv-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
+        <h3>Valores</h3>
+        <ul class="mvv-list">
+          <li><b>Segurança</b> em primeiro lugar, em todas as etapas.</li>
+          <li><b>Qualidade</b> e conformidade com as normas técnicas.</li>
+          <li><b>Compromisso</b> com prazos e com a palavra dada.</li>
+          <li><b>Transparência</b> técnica e comercial.</li>
+          <li><b>Melhoria contínua</b> de processos e pessoas.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ============ PRODUCTS ============ -->
 <section class="products" id="produtos">
   <div class="wrap">
@@ -176,6 +219,38 @@
         <span class="tag">Correção de FP</span>
       </article>
 
+    </div>
+  </div>
+</section>
+
+<!-- ============ GALLERY ============ -->
+<section class="gallery" id="galeria">
+  <div class="wrap">
+    <div class="center reveal" style="margin:0 auto;max-width:680px">
+      <span class="eyebrow">Galeria</span>
+      <h2 class="section-title" style="margin:0 auto">Painéis de baixa tensão na prática</h2>
+      <p class="section-lead" style="margin:14px auto 0">Exemplos de quadros e centros de controle de baixa tensão.
+        <span class="pending">imagens ilustrativas — substituir por fotos da WZ</span></p>
+    </div>
+    <div class="gallery-grid">
+      <figure class="reveal">
+        <img loading="lazy" alt="Centro de controle de motores de baixa tensão"
+             src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Motor_Control_Center_480_Volt.jpg/900px-Motor_Control_Center_480_Volt.jpg"
+             onerror="this.onerror=null;this.src='assets/img/panel-qgbt.svg';this.closest('figure').classList.add('is-illustration')" />
+        <figcaption>CCM — Centro de Controle de Motores</figcaption>
+      </figure>
+      <figure class="reveal">
+        <img loading="lazy" alt="Quadro geral e de distribuição de baixa tensão"
+             src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Electrical_Main_and_distribution_panel_for_480_volt.JPG/900px-Electrical_Main_and_distribution_panel_for_480_volt.JPG"
+             onerror="this.onerror=null;this.src='assets/img/panel-qgbt.svg';this.closest('figure').classList.add('is-illustration')" />
+        <figcaption>QGBT — Quadro Geral de Baixa Tensão</figcaption>
+      </figure>
+      <figure class="reveal">
+        <img loading="lazy" alt="Quadro de distribuição de circuitos"
+             src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Distribution_board_-_Slovakia_01.jpg/900px-Distribution_board_-_Slovakia_01.jpg"
+             onerror="this.onerror=null;this.src='assets/img/panel-qgbt.svg';this.closest('figure').classList.add('is-illustration')" />
+        <figcaption>QDC — Quadro de Distribuição</figcaption>
+      </figure>
     </div>
   </div>
 </section>
@@ -323,8 +398,14 @@
   <div class="wrap">
     <div class="footer-grid">
       <div class="fbrand">
-        <img src="assets/img/logo.svg" alt="WZ Montagens" />
-        <p>Projeto, montagem e manutenção de painéis elétricos de baixa tensão com engenharia sólida e foco em segurança.</p>
+        <span class="brand brand--light">
+          <img class="mark" src="assets/img/gear.svg" alt="" aria-hidden="true" />
+          <span class="wordmark">
+            <span class="wz">W<span class="z">Z</span></span>
+            <span class="sub">MON<span class="t">T</span>AGENS</span>
+          </span>
+        </span>
+        <p style="margin-top:16px">Projeto, montagem e manutenção de painéis elétricos de baixa tensão com engenharia sólida e foco em segurança.</p>
       </div>
       <div>
         <h4>Produtos</h4>
@@ -353,6 +434,13 @@
           <li>Cidade / UF</li>
         </ul>
       </div>
+    </div>
+    <div class="footer-credits">
+      Créditos das imagens (ilustrativas, licenças livres): fotos de
+      <a href="https://commons.wikimedia.org/wiki/File:Motor_Control_Center_480_Volt.jpg" target="_blank" rel="noopener">Motor Control Center</a>,
+      <a href="https://commons.wikimedia.org/wiki/File:Electrical_Main_and_distribution_panel_for_480_volt.JPG" target="_blank" rel="noopener">Quadro principal/distribuição</a> e
+      <a href="https://commons.wikimedia.org/wiki/File:Distribution_board_-_Slovakia_01.jpg" target="_blank" rel="noopener">Quadro de distribuição</a>
+      via Wikimedia Commons. Recomendado substituir por fotos próprias da WZ.
     </div>
     <div class="footer-bottom">
       <span>© <span id="year"></span> WZ Montagens. Todos os direitos reservados.</span>
