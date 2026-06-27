@@ -246,6 +246,31 @@ form{background:#fff;border:1px solid var(--line);border-radius:var(--radius);pa
 .reveal{opacity:0;transform:translateY(24px);transition:.6s cubic-bezier(.2,.7,.2,1)}
 .reveal.in{opacity:1;transform:none}
 
+/* ---------- Intro / splash da logo ---------- */
+#intro{
+  position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(120% 120% at 50% 40%,#ffffff 0%,#eef0f3 60%,#dfe2e7 100%);
+  animation:introOut .8s ease 1.9s forwards;
+}
+html.no-intro #intro{display:none}
+.intro-logo{
+  position:relative;width:min(74vw,440px);overflow:hidden;
+  opacity:0;transform:scale(.9);filter:blur(8px);
+  animation:introIn 1s cubic-bezier(.2,.7,.2,1) .15s forwards;
+}
+.intro-logo img{display:block;width:100%;height:auto}
+.intro-logo::after{
+  content:"";position:absolute;top:-10%;left:-70%;width:45%;height:120%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.9),transparent);
+  transform:skewX(-18deg);animation:introShine 1.2s ease .85s 1;
+}
+@keyframes introIn{to{opacity:1;transform:scale(1);filter:blur(0)}}
+@keyframes introShine{from{left:-70%}to{left:130%}}
+@keyframes introOut{to{opacity:0;visibility:hidden}}
+@media(prefers-reduced-motion:reduce){
+  #intro{display:none}
+}
+
 /* ---------- Norm pills ---------- */
 .pills{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-start}
 .pill{font-family:var(--display);font-weight:600;font-size:.82rem;color:var(--steel);

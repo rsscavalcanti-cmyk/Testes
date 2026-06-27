@@ -53,6 +53,18 @@
     if (c) c.textContent = 'CNPJ ' + CONFIG.cnpj;
   }
 
+  /* ---- Intro: remove o overlay do DOM após animar (limpeza) ---- */
+  var intro = document.getElementById('intro');
+  if (intro) {
+    if (document.documentElement.classList.contains('no-intro')) {
+      intro.parentNode && intro.parentNode.removeChild(intro);
+    } else {
+      setTimeout(function () {
+        intro.parentNode && intro.parentNode.removeChild(intro);
+      }, 2900);
+    }
+  }
+
   /* ---- Ano no rodapé ---- */
   var y = document.getElementById('year');
   if (y) y.textContent = new Date().getFullYear();
