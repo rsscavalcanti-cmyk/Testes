@@ -13,6 +13,7 @@
     whatsappLabel: '(31) 9589-9225',
     phone:         '(31) 9589-9225',
     email:         'wzmontagens@gmail.com',
+    formEndpoint:  'https://formsubmit.co/ajax/wzmontagens@gmail.com',
     address:       'Avelino Andrade, 241 - Lagoa Dourada, MG - 36345-000',
     hours:         'Seg a Sex, 08h–18h',
     cnpj:          '60.047.617/0001-94',
@@ -28,14 +29,14 @@
       el.setAttribute('target', '_blank');
       el.setAttribute('rel', 'noopener');
     } else {
-      el.setAttribute('href', '#contato');   // sem número ainda → leva ao formulário
+      el.setAttribute('href', '#contato');
     }
   });
 
   /* ---- Preenche os dados de contato a partir do CONFIG ---- */
   function fill(id, value, href) {
     var el = document.getElementById(id);
-    if (!el || !value) return;            // vazio: mantém placeholder + "a definir"
+    if (!el || !value) return;
     if (href) { el.innerHTML = '<a href="' + href + '">' + value + '</a>'; }
     else { el.textContent = value; }
   }
@@ -54,6 +55,11 @@
   document.querySelectorAll('.pending').forEach(function (el) {
     el.parentNode && el.parentNode.removeChild(el);
   });
+
+  var contactLead = document.querySelector('.contact-info .section-lead');
+  if (contactLead) {
+    contactLead.textContent = 'Preencha o formulário ou utilize um dos canais abaixo.';
+  }
 
   /* ---- Intro: remove o overlay do DOM após animar (limpeza) ---- */
   var intro = document.getElementById('intro');
@@ -112,29 +118,73 @@
     reveals.forEach(function (el) { el.classList.add('in'); });
   }
 
-  /* ---- Formulário → abre cliente de e-mail (mailto) ----
-     Placeholder até definir back-end (PHP/Formspree/etc). */
+  /* ---- Formulário: envio direto pela página ---- */
   var form = document.getElementById('contactForm');
   if (form) {
+    var note = form.querySelector('.form-note');
+    var submitBtn = form.querySelector('button[type="submit"]');
+    var originalBtnText = submitBtn ? submitBtn.textContent : 'Enviar solicitação';
+
+    if (note) {
+      note.textContent = '* Campos obrigatórios. Sua solicitação será enviada diretamente pelo formulário.';
+    }
+
+    var status = document.getElementById('formStatus');
+    if (!status) {
+      status = document.createElement('p');
+      status.id = 'formStatus';
+      status.className = 'form-note';
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      form.appendChild(status);
+    }
+
+    function setStatus(kind, message) {
+      status.textContent = message || '';
+      status.style.marginTop = message ? '12px' : '0';
+      status.style.fontWeight = message ? '700' : '';
+      status.style.color = kind === 'ok' ? '#166534' : (kind === 'error' ? '#92400e' : '#5b5e66');
+    }
+
+    function setSending(isSending) {
+      if (!submitBtn) return;
+      submitBtn.disabled = isSending;
+      submitBtn.textContent = isSending ? 'Enviando...' : originalBtnText;
+      submitBtn.style.opacity = isSending ? '.75' : '';
+      submitBtn.style.cursor = isSending ? 'wait' : '';
+    }
+
     form.addEventListener('submit', function (ev) {
       ev.preventDefault();
       var f = form.elements;
       if (!f.nome.value.trim() || !f.telefone.value.trim() || !f.email.value.trim()) {
-        alert('Por favor, preencha nome, telefone e e-mail.');
+        setStatus('error', 'Por favor, preencha nome, telefone e e-mail.');
         return;
       }
-      var corpo =
-        'Nome: ' + f.nome.value + '\n' +
-        'Empresa: ' + (f.empresa.value || '-') + '\n' +
-        'Telefone: ' + f.telefone.value + '\n' +
-        'E-mail: ' + f.email.value + '\n' +
-        'Tipo: ' + (f.tipo.value || '-') + '\n\n' +
-        'Mensagem:\n' + (f.msg.value || '-');
-      var assunto = 'Solicitação de orçamento — WZ Montagens';
-      var dest = CONFIG.email || 'contato@wzmontagens.com.br';
-      window.location.href = 'mailto:' + dest +
-        '?subject=' + encodeURIComponent(assunto) +
-        '&body=' + encodeURIComponent(corpo);
+
+      var payload = new FormData(form);
+      payload.append('_subject', 'Solicitação de orçamento — WZ Montagens');
+      payload.append('_template', 'table');
+      payload.append('_captcha', 'false');
+      payload.append('_replyto', f.email.value.trim());
+      payload.append('Origem', window.location.href);
+
+      setStatus('', '');
+      setSending(true);
+
+      fetch(CONFIG.formEndpoint, {
+        method: 'POST',
+        body: payload,
+        headers: { 'Accept': 'application/json' }
+      }).then(function (response) {
+        if (!response.ok) throw new Error('Falha no envio');
+        form.reset();
+        setStatus('ok', 'Solicitação enviada com sucesso. Em breve entraremos em contato.');
+      }).catch(function () {
+        setStatus('error', 'Não foi possível enviar automaticamente agora. Você também pode falar conosco pelo WhatsApp ou pelo e-mail ' + CONFIG.email + '.');
+      }).finally(function () {
+        setSending(false);
+      });
     });
   }
 })();
