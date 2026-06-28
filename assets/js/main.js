@@ -5,20 +5,19 @@
   'use strict';
 
   /* ============================================================
-     >>> CONTATO — PREENCHA AQUI QUANDO TIVER OS DADOS <<<
-     Edite só este bloco: o site (seção Contato, rodapé, WhatsApp
-     e e-mail) é atualizado automaticamente. Deixe '' no que ainda
-     não tiver — o campo mantém o aviso "a definir".
+     >>> CONTATO — DADOS OFICIAIS DA EMPRESA <<<
+     Este bloco alimenta a seção Contato, rodapé, WhatsApp e e-mail.
      ============================================================ */
   var CONFIG = {
-    whatsapp:      '',  // só dígitos: 55 + DDD + número. Ex.: '5511999998888'
-    whatsappLabel: '',  // como aparece. Ex.: '(11) 99999-8888'
-    phone:         '',  // telefone fixo (opcional). Ex.: '(11) 3333-4444'
-    email:         '',  // Ex.: 'contato@wzmontagens.com.br'
-    address:       '',  // Ex.: 'Rua Exemplo, 123 - Bairro - Cidade/UF'
+    whatsapp:      '553195899225',
+    whatsappLabel: '(31) 9589-9225',
+    phone:         '(31) 9589-9225',
+    email:         'wzmontagens@gmail.com',
+    address:       'Avelino Andrade, 241 - Lagoa Dourada, MG - 36345-000',
     hours:         'Seg a Sex, 08h–18h',
-    cnpj:          '',  // Ex.: '00.000.000/0001-00'
-    city:          ''   // rodapé. Ex.: 'São Paulo / SP'
+    cnpj:          '60.047.617/0001-94',
+    city:          'Lagoa Dourada / MG',
+    legalName:     'WZ Montagens LTDA'
   };
 
   /* ---- WhatsApp ---- */
@@ -50,8 +49,11 @@
   fill('fEnd', CONFIG.city || CONFIG.address);
   if (CONFIG.cnpj) {
     var c = document.getElementById('cnpjLine');
-    if (c) c.textContent = 'CNPJ ' + CONFIG.cnpj;
+    if (c) c.textContent = CONFIG.legalName + ' · CNPJ ' + CONFIG.cnpj;
   }
+  document.querySelectorAll('.pending').forEach(function (el) {
+    el.parentNode && el.parentNode.removeChild(el);
+  });
 
   /* ---- Intro: remove o overlay do DOM após animar (limpeza) ---- */
   var intro = document.getElementById('intro');
