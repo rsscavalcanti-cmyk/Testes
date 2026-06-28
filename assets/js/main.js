@@ -14,7 +14,7 @@
     phone:         '(31) 9589-9225',
     email:         'wzmontagens@gmail.com',
     formEndpoint:  'https://formsubmit.co/ajax/wzmontagens@gmail.com',
-    address:       'Avelino Andrade, 241 - Lagoa Dourada, MG - 36345-000',
+    address:       'Lagoa Dourada / MG',
     hours:         'Seg a Sex, 08h–18h',
     cnpj:          '60.047.617/0001-94',
     city:          'Lagoa Dourada / MG',
