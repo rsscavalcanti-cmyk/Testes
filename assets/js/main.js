@@ -199,11 +199,25 @@
       prev.addEventListener('click', function () { go(-1); });
       next.addEventListener('click', function () { go(1); });
 
+      /* autoplay: passa as imagens automaticamente */
+      var reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var autoTimer;
+      function startAuto() { if (reduceMotion) return; stopAuto(); autoTimer = setInterval(function () { go(1); }, 5000); }
+      function stopAuto() { if (autoTimer) { clearInterval(autoTimer); autoTimer = null; } }
+      function resetAuto() { stopAuto(); startAuto(); }
+      carousel.addEventListener('mouseenter', stopAuto);
+      carousel.addEventListener('mouseleave', startAuto);
+      carousel.addEventListener('touchstart', stopAuto, { passive: true });
+      prev.addEventListener('click', resetAuto);
+      next.addEventListener('click', resetAuto);
+      dotButtons.forEach(function (d) { d.addEventListener('click', resetAuto); });
+
       carousel.appendChild(track);
       carousel.appendChild(prev);
       carousel.appendChild(next);
       carousel.appendChild(dots);
       hero.replaceChildren(carousel);
+      startAuto();
     }
 
     findSecondImage(0);
