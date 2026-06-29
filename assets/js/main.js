@@ -61,6 +61,12 @@
     contactLead.textContent = 'Preencha o formulário ou utilize um dos canais abaixo.';
   }
 
+  /* ---- Frase principal ---- */
+  var heroTitle = document.querySelector('.hero-copy h1');
+  if (heroTitle) {
+    heroTitle.textContent = 'Painéis elétricos sob medida para proteger, controlar e manter sua operação em funcionamento.';
+  }
+
   /* ---- Intro: remove o overlay do DOM após animar (limpeza) ---- */
   var intro = document.getElementById('intro');
   if (intro) {
