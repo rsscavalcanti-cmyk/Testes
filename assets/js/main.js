@@ -186,28 +186,28 @@
   }
 
   /* ---- Reorganização editorial da página ----
-     Ordem final: Hero > Produtos > Processo > Diferenciais > Aplicações > Galeria > A Empresa > CTA > Contato > Rodapé
+     Ordem final: Hero > Quem somos > Produtos > Processo > Diferenciais > Aplicações > Galeria > CTA > Contato > Rodapé
   ---- */
   (function organizePage() {
     var hero = document.querySelector('.hero');
+    var sobre = document.getElementById('sobre');
     var produtos = document.getElementById('produtos');
     var processo = document.getElementById('processo');
     var diferenciais = document.getElementById('diferenciais');
     var aplicacoes = document.getElementById('aplicacoes');
     var galeria = document.getElementById('galeria');
-    var sobre = document.getElementById('sobre');
     var servicos = document.getElementById('servicos');
 
     if (servicos && servicos.parentNode) {
       servicos.parentNode.removeChild(servicos);
     }
 
-    insertAfter(hero, produtos);
+    insertAfter(hero, sobre);
+    insertAfter(sobre, produtos);
     insertAfter(produtos, processo);
     insertAfter(processo, diferenciais);
     insertAfter(diferenciais, aplicacoes);
     insertAfter(aplicacoes, galeria);
-    insertAfter(galeria, sobre);
   })();
 
   /* ---- Intro: remove o overlay do DOM após animar (limpeza) ---- */
