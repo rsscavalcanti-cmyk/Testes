@@ -14,8 +14,8 @@
     whatsapp:      '553195899225',                              // só dígitos: 55 + DDD + número
     whatsappLabel: '(31) 9589-9225',
     phone:         '(31) 9589-9225',
-    email:         'wzmontagens@gmail.com',
-    formEndpoint:  'https://formsubmit.co/ajax/wzmontagens@gmail.com',
+    email:         'contato@wzmontagens.com.br',
+    formEndpoint:  'https://formsubmit.co/ajax/contato@wzmontagens.com.br',
     address:       'Lagoa Dourada / MG',
     hours:         'Seg a Sex, 08h–18h',
     cnpj:          '60.047.617/0001-94',
